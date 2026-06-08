@@ -1,0 +1,26 @@
+# Environment files
+.env
+*.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+
+# Node
+node_modules/
+frontend/node_modules/
+
+# Database
+*.sqlite3
+chroma_db/
+
+# Logs
+*.log
+
+# Docker
+*.dockerignore
+
+backend/.env
