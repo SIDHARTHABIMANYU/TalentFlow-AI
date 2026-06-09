@@ -20,7 +20,7 @@ EXPERIENCE: 0.5
 EDUCATION: degree, college, year
 
 STRICT RULES:
-- NAME: Look at very top of resume for person's name
+- NAME: Search the ENTIRE text for a person's full name. It may appear anywhere due to PDF parsing order. Look for a proper noun near an email address or phone number. Usually 2-3 words in ALL CAPS or Title Case. Ignore company names, college names, and project names.
 - EMAIL: Look for @ symbol in text
 - PHONE: Look for 10 digit number or +91 number
 - SKILLS: List ALL technical skills found separated by commas
@@ -33,14 +33,12 @@ STRICT RULES:
 - Write NOT_FOUND only if truly cannot find
 """
     try:
-        # ✅ FIX 4 — New google.genai SDK (not deprecated google.generativeai)
         response = client.models.generate_content(
-            model = "gemini-2.5-flash",
+            model="gemini-2.5-flash",
             contents=prompt
         )
         result_text = response.text.strip()
 
-        # Remove ALL markdown formatting
         result_text = result_text.replace("**", "")
         result_text = result_text.replace("*", "")
         result_text = result_text.replace("`", "")
@@ -61,7 +59,6 @@ STRICT RULES:
 
         # Fallback — extract email from raw text if Gemini missed it
         if not data["email"]:
-            # ✅ FIX 1 — Clean hidden chars BEFORE email regex
             clean_text_for_email = (
                 text
                 .replace('\u200b', '')
@@ -81,6 +78,13 @@ STRICT RULES:
             phones = re.findall(phone_pattern, text)
             if phones:
                 data["phone"] = phones[0]
+
+        # Fallback — extract name from email if Gemini missed it
+        if not data["full_name"] and data["email"]:
+            username = data["email"].split("@")[0]
+            username = re.sub(r'[0-9_.]', ' ', username).strip()
+            data["full_name"] = username.title()
+            print(f"👤 Name fallback from email: {data['full_name']}")
 
         print(f"✅ Name: {data['full_name']}")
         print(f"✅ Email: {data['email']}")
@@ -111,7 +115,6 @@ def extract_field(text: str, field: str) -> str:
                 if not value or value.upper() == "NOT_FOUND":
                     return None
 
-                # Check next line for continuation
                 if i + 1 < len(lines):
                     next_line = lines[i + 1].strip()
                     next_line = next_line.replace("**", "").replace("*", "")
@@ -146,25 +149,21 @@ def extract_experience(text: str, raw_resume: str = "") -> float:
 
 
 def parse_with_regex(text: str) -> dict:
-    # ✅ FIX 1 — Clean hidden unicode chars BEFORE any regex runs
     clean_text = (
         text
-        .replace('\u200b', '')   # zero-width space
-        .replace('\u200c', '')   # zero-width non-joiner
-        .replace('\u200d', '')   # zero-width joiner
-        .replace('\ufeff', '')   # BOM
-        .replace('\xa0', ' ')   # non-breaking space → normal space
+        .replace('\u200b', '')
+        .replace('\u200c', '')
+        .replace('\u200d', '')
+        .replace('\ufeff', '')
+        .replace('\xa0', ' ')
     )
 
-    # Extract email — on cleaned text
     email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
     email = re.findall(email_pattern, clean_text)
 
-    # Extract phone
     phone_pattern = r'[\+]?[1-9][0-9 .\-\(\)]{8,}[0-9]'
     phone = re.findall(phone_pattern, clean_text)
 
-    # Extract name from first line
     name = None
     lines = [l.strip() for l in clean_text.split('\n') if l.strip()]
     if lines:
@@ -173,7 +172,12 @@ def parse_with_regex(text: str) -> dict:
         if 2 <= len(words) <= 4 and all(w.replace('.','').isalpha() for w in words):
             name = first_line
 
-    # ✅ FIX 2 — Education multiline: grab current line + next line
+    # Fallback name from email
+    if not name and email:
+        username = email[0].split("@")[0]
+        username = re.sub(r'[0-9_.]', ' ', username).strip()
+        name = username.title()
+
     education = None
     edu_keywords = [
         "b.tech", "be ", "b.e", "m.tech", "mba",
@@ -184,7 +188,6 @@ def parse_with_regex(text: str) -> dict:
         line_lower = line.lower()
         if any(kw in line_lower for kw in edu_keywords):
             education = line
-            # Grab next line too (e.g. "Kakatiya Institute 2025")
             if i + 1 < len(lines):
                 next_line = lines[i + 1].strip()
                 if next_line and not any(
@@ -194,7 +197,6 @@ def parse_with_regex(text: str) -> dict:
                     education = education + ", " + next_line
             break
 
-    # Skills
     common_skills = [
         "python", "llm", "llms", "edge ai", "computer vision",
         "opencv", "tensorflow", "pytorch", "machine learning",
@@ -215,14 +217,10 @@ def parse_with_regex(text: str) -> dict:
         if skill in text_lower:
             found_skills.append(skill)
 
-    # Experience
     experience = 0.0
     if "intern" in text_lower or "trainee" in text_lower:
         experience = 0.5
-    exp_match = re.findall(
-        r'(\d+)\+?\s*years?\s*(?:of\s*)?experience',
-        text_lower
-    )
+    exp_match = re.findall(r'(\d+)\+?\s*years?\s*(?:of\s*)?experience', text_lower)
     if exp_match:
         experience = float(exp_match[0])
 
