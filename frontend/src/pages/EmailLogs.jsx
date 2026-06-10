@@ -5,7 +5,7 @@ export default function EmailLogs() {
     const [candidates, setCandidates] = useState([])
 
     useEffect(() => {
-        axios.get('http://127.0.0.1:8000/api/v1/candidates/')
+        axios.get('https://recruitment.inceptarc.com/api/api/v1/candidates/')
             .then(res => setCandidates(res.data))
     }, [])
 

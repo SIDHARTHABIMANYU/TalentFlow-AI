@@ -13,7 +13,7 @@ export default function Dashboard() {
 
     const fetchData = async () => {
         try {
-            const res = await axios.get('http://127.0.0.1:8000/api/v1/candidates/')
+            const res = await axios.get('https://recruitment.inceptarc.com/api/api/v1/candidates/')
             const all = res.data
             const sorted = all.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
             setCandidates(sorted.slice(0, 5))

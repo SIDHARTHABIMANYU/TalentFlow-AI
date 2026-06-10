@@ -13,7 +13,7 @@ export default function CandidateDetail() {
 
     const fetchCandidate = async () => {
         try {
-            const res = await axios.get(`http://127.0.0.1:8000/api/v1/candidates/${id}`)
+            const res = await axios.get(`https://recruitment.inceptarc.com/api/api/v1/candidates/${id}`)
             setCandidate(res.data)
         } catch (err) {
             console.error(err)
@@ -22,7 +22,7 @@ export default function CandidateDetail() {
 
     const handleApprove = async () => {
         try {
-            await axios.post('http://127.0.0.1:8000/api/v1/webhook/telegram', {
+            await axios.post('https://recruitment.inceptarc.com/api/api/v1/webhook/telegram', {
                 callback_query: {
                     data: `approve_${id}`,
                     from: { id: 1334029468 }
@@ -37,7 +37,7 @@ export default function CandidateDetail() {
 
     const handleReject = async () => {
         try {
-            await axios.post('http://127.0.0.1:8000/api/v1/webhook/telegram', {
+            await axios.post('https://recruitment.inceptarc.com/api/api/v1/webhook/telegram', {
                 callback_query: {
                     data: `reject_${id}`,
                     from: { id: 1334029468 }

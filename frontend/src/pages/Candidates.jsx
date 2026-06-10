@@ -13,7 +13,7 @@ export default function Candidates() {
 
     const fetchCandidates = async () => {
         try {
-            const res = await axios.get('http://127.0.0.1:8000/api/v1/candidates/')
+            const res = await axios.get('https://recruitment.inceptarc.com/api/api/v1/candidates/')
             setCandidates(res.data)
         } catch (err) {
             console.error(err)

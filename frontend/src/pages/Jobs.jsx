@@ -17,7 +17,7 @@ export default function Jobs() {
         try {
             setLoading(true)
             setError(null)
-            const res = await axios.get('http://127.0.0.1:8000/api/v1/jobs/')
+            const res = await axios.get('https://recruitment.inceptarc.com/api/api/v1/jobs/')
             setJobs(res.data)
         } catch (err) {
             console.error(err)
@@ -33,7 +33,7 @@ export default function Jobs() {
             return
         }
         try {
-            await axios.post('http://127.0.0.1:8000/api/v1/jobs/', form)
+            await axios.post('https://recruitment.inceptarc.com/api/api/v1/jobs/', form)
             alert('✅ Job created!')
             fetchJobs()
             setForm({ title: '', department: '', required_skills: '', min_experience_years: '' })
@@ -46,7 +46,7 @@ export default function Jobs() {
     const handleDelete = async (jobId) => {
         if (!confirm('Delete this job?')) return
         try {
-            await axios.delete(`http://127.0.0.1:8000/api/v1/jobs/${jobId}`)
+            await axios.delete(`https://recruitment.inceptarc.com/api/api/v1/jobs/${jobId}`)
             fetchJobs()
         } catch (err) {
             console.error(err)

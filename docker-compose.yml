@@ -53,6 +53,13 @@ services:
     volumes:
       - ./backend:/app
 
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
 volumes:
   postgres_data:
   chroma_data:

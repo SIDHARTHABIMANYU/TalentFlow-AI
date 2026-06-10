@@ -21,7 +21,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://13.126.76.141", "http://13.126.76.141:80", "https://recruitment.inceptarc.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
