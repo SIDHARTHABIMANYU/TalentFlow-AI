@@ -10,7 +10,7 @@ function App() {
     <Router>
       <div className="min-h-screen bg-gray-100">
         <nav className="bg-blue-800 text-white px-6 py-4 flex gap-6">
-          <span className="font-bold text-lg mr-4">🏢 Inceptrac HR</span>
+          <span className="font-bold text-lg mr-4">🏢 Inceptarc Technologies</span>
           <Link to="/" className="hover:text-blue-200">Dashboard</Link>
           <Link to="/candidates" className="hover:text-blue-200">Candidates</Link>
           <Link to="/jobs" className="hover:text-blue-200">Jobs</Link>

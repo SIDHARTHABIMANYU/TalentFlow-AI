@@ -7,7 +7,7 @@ router = APIRouter()
 
 @router.get("/")
 def get_all_candidates(db: Session = Depends(get_db)):
-    candidates = db.query(Candidate).all()
+    candidates = db.query(Candidate).order_by(Candidate.created_at.desc()).all()
     return candidates
 
 @router.get("/{candidate_id}")
