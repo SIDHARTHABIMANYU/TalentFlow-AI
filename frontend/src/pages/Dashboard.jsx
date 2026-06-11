@@ -1,19 +1,19 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-
 export default function Dashboard() {
     const [stats, setStats] = useState({
         total: 0, shortlisted: 0, rejected: 0, pending: 0
     })
     const [candidates, setCandidates] = useState([])
-
     useEffect(() => {
         fetchData()
     }, [])
-
     const fetchData = async () => {
         try {
-            const res = await axios.get('https://recruitment.inceptarc.com/api/api/v1/candidates/')
+            const token = localStorage.getItem('token')
+            const res = await axios.get('/api/v1/candidates/', {
+                headers: { Authorization: `Bearer ${token}` }
+            })
             const all = res.data
             const sorted = all.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
             setCandidates(sorted.slice(0, 5))
@@ -27,12 +27,9 @@ export default function Dashboard() {
             console.error(err)
         }
     }
-
     return (
         <div>
             <h1 className="text-2xl font-bold mb-6">📊 Dashboard</h1>
-
-            {/* Stats Cards */}
             <div className="grid grid-cols-4 gap-4 mb-8">
                 <div className="bg-blue-500 text-white p-4 rounded-lg text-center">
                     <div className="text-3xl font-bold">{stats.total}</div>
@@ -51,8 +48,6 @@ export default function Dashboard() {
                     <div>Pending</div>
                 </div>
             </div>
-
-            {/* Recent Candidates */}
             <div className="bg-white rounded-lg shadow p-4">
                 <h2 className="text-xl font-bold mb-4">Recent Candidates</h2>
                 <table className="w-full">

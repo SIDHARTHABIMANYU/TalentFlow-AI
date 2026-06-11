@@ -1,34 +1,31 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
-
 export default function Candidates() {
     const [candidates, setCandidates] = useState([])
     const [search, setSearch] = useState('')
     const navigate = useNavigate()
-
     useEffect(() => {
         fetchCandidates()
     }, [])
-
     const fetchCandidates = async () => {
         try {
-            const res = await axios.get('https://recruitment.inceptarc.com/api/api/v1/candidates/')
+            const token = localStorage.getItem('token')
+            const res = await axios.get('/api/v1/candidates/', {
+                headers: { Authorization: `Bearer ${token}` }
+            })
             setCandidates(res.data)
         } catch (err) {
             console.error(err)
         }
     }
-
     const filtered = candidates.filter(c =>
         (c.full_name || '').toLowerCase().includes(search.toLowerCase()) ||
         (c.email || '').toLowerCase().includes(search.toLowerCase())
     )
-
     return (
         <div>
             <h1 className="text-2xl font-bold mb-6">👥 All Candidates</h1>
-
             <input
                 type="text"
                 placeholder="Search by name or email..."
@@ -36,7 +33,6 @@ export default function Candidates() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
             />
-
             <div className="bg-white rounded-lg shadow">
                 <table className="w-full">
                     <thead>

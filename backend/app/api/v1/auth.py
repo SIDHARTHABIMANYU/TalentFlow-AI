@@ -1,36 +1,42 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from app.core.database import get_db
-from app.core.security import create_access_token, verify_password, hash_password
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from app.core.security import create_access_token
+import logging
+import requests
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
-class LoginRequest(BaseModel):
-    username: str
-    password: str
+ALLOWED_DOMAIN = "inceptarc.com"
 
-# Simple hardcoded HR login for Phase 1
-HR_USERNAME = "admin"
-HR_PASSWORD = "inceptrac2026"
+class GoogleTokenRequest(BaseModel):
+    token: str
 
-@router.post("/login")
-def login(request: LoginRequest):
-    # Check username
-    if request.username != HR_USERNAME:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    
-    # Check password directly
-    if request.password != HR_PASSWORD:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    
-    # Create JWT token
-    token = create_access_token(data={"sub": request.username})
-    
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "message": "Login successful"
-    }
+@router.post("/google")
+def google_login(request: GoogleTokenRequest):
+    try:
+        response = requests.get(
+            f"https://oauth2.googleapis.com/tokeninfo?id_token={request.token}"
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=401, detail="Invalid Google token")
+        
+        idinfo = response.json()
+        email = idinfo.get("email")
+        name = idinfo.get("name", "")
 
-    
+        if not email.endswith(f"@{ALLOWED_DOMAIN}"):
+            raise HTTPException(status_code=403, detail="Access denied. Only @inceptarc.com emails allowed.")
+
+        token = create_access_token(data={"sub": email, "name": name})
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "email": email,
+            "name": name
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Google auth error: {str(e)}")
+        raise HTTPException(status_code=401, detail=f"Auth failed: {str(e)}")
