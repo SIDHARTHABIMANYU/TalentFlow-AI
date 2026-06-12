@@ -3,47 +3,67 @@ import axios from 'axios'
 
 export default function EmailLogs() {
     const [candidates, setCandidates] = useState([])
+    const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        axios.get('https://recruitment.inceptarc.com/api/api/v1/candidates/')
-            .then(res => setCandidates(res.data))
+        const token = localStorage.getItem('token')
+        axios.get('https://recruitment.inceptarc.com/api/v1/candidates/', {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        })
+        .then(res => {
+            setCandidates(res.data)
+            setLoading(false)
+        })
+        .catch(err => {
+            console.error('Error fetching logs:', err)
+            setLoading(false)
+        })
     }, [])
 
     return (
         <div>
             <h1 className="text-2xl font-bold mb-6">📧 Email Logs</h1>
             <div className="bg-white rounded-lg shadow">
-                <table className="w-full">
-                    <thead>
-                        <tr className="bg-gray-100">
-                            <th className="p-3 text-left">From</th>
-                            <th className="p-3 text-left">Subject</th>
-                            <th className="p-3 text-left">Status</th>
-                            <th className="p-3 text-left">Score</th>
-                            <th className="p-3 text-left">Date</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {candidates.map(c => (
-                            <tr key={c.id} className="border-b hover:bg-gray-50">
-                                <td className="p-3">{c.sender_email || c.email}</td>
-                                <td className="p-3">{c.email_subject || 'N/A'}</td>
-                                <td className="p-3">
-                                    <span className={`px-2 py-1 rounded text-white text-sm ${c.status === 'approved' ? 'bg-green-500' :
-                                            c.status === 'rejected' ? 'bg-red-500' :
-                                                c.status === 'shortlist' ? 'bg-blue-500' : 'bg-yellow-500'
-                                        }`}>
-                                        {c.status}
-                                    </span>
-                                </td>
-                                <td className="p-3">{c.match_score}%</td>
-                                <td className="p-3 text-sm text-gray-500">
-                                    {new Date(c.created_at).toLocaleDateString()}
-                                </td>
+                {loading ? (
+                    <p className="p-4 text-gray-500">Loading...</p>
+                ) : candidates.length === 0 ? (
+                    <p className="p-4 text-gray-500">No email logs found.</p>
+                ) : (
+                    <table className="w-full">
+                        <thead>
+                            <tr className="bg-gray-100">
+                                <th className="p-3 text-left">From</th>
+                                <th className="p-3 text-left">Subject</th>
+                                <th className="p-3 text-left">Status</th>
+                                <th className="p-3 text-left">Score</th>
+                                <th className="p-3 text-left">Date</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {candidates.map(c => (
+                                <tr key={c.id} className="border-b hover:bg-gray-50">
+                                    <td className="p-3">{c.sender_email || c.email}</td>
+                                    <td className="p-3">{c.email_subject || 'N/A'}</td>
+                                    <td className="p-3">
+                                        <span className={`px-2 py-1 rounded text-white text-sm ${
+                                            c.status === 'approved' ? 'bg-green-500' :
+                                            c.status === 'rejected' ? 'bg-red-500' :
+                                            c.status === 'shortlist' ? 'bg-blue-500' : 'bg-yellow-500'
+                                        }`}>
+                                            {c.status}
+                                        </span>
+                                    </td>
+                                    <td className="p-3">{c.match_score}%</td>
+                                    <td className="p-3 text-sm text-gray-500">
+                                        {new Date(c.created_at).toLocaleDateString()}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
             </div>
         </div>
     )
