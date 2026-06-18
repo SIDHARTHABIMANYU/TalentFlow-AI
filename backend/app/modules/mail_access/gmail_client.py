@@ -5,7 +5,6 @@ from app.core.config import settings
 
 
 def connect_to_gmail():
-    """Always creates a fresh IMAP connection — never reuses stale ones"""
     try:
         mail = imaplib.IMAP4_SSL("imap.gmail.com", 993)
         mail.login(settings.gmail_user, settings.gmail_password)
@@ -17,88 +16,95 @@ def connect_to_gmail():
 
 
 def get_recruitment_emails():
-    """Reads unread emails from Gmail — fresh connection every call"""
-    mail = None  # so finally block is safe even if connect fails
+    mail = None
+    from app.core.database import SessionLocal
+    from app.models.candidate import Candidate
 
     try:
         mail = connect_to_gmail()
-
-        # Select inbox
         mail.select("inbox")
 
-        # Search for unread emails only
-        status, messages = mail.search(None, "UNSEEN")
+        from datetime import datetime, timedelta
+        since_date = (datetime.now() - timedelta(days=7)).strftime("%d-%b-%Y")
+        status, messages = mail.search(None, "SINCE", since_date)
 
         email_list = []
-
-        # Get list of email IDs
         email_ids = messages[0].split()
 
         if not email_ids:
-            print("📭 No unread emails found")
+            print("📭 No recent emails found")
             return []
 
-        print(f"📬 Found {len(email_ids)} unread email(s)")
+        print(f"📬 Found {len(email_ids)} email(s) in last 7 days, checking for new ones...")
 
-        # Read last 10 unread emails
-        for email_id in email_ids[-10:]:
-            try:
-                status, msg_data = mail.fetch(email_id, "(RFC822)")
+        db = SessionLocal()
+        try:
+            for email_id in email_ids:
+                try:
+                    status, msg_data = mail.fetch(email_id, "(RFC822)")
 
-                for response_part in msg_data:
-                    if isinstance(response_part, tuple):
-                        msg = email.message_from_bytes(response_part[1])
+                    for response_part in msg_data:
+                        if isinstance(response_part, tuple):
+                            msg = email.message_from_bytes(response_part[1])
 
-                        # Get subject
-                        subject = decode_header(msg["Subject"])[0][0]
-                        if isinstance(subject, bytes):
-                            subject = subject.decode()
+                            message_id = msg.get("Message-ID", "").strip()
 
-                        # Get sender
-                        sender = msg.get("From")
+                            if message_id:
+                                exists = db.query(Candidate).filter(
+                                    Candidate.message_id == message_id
+                                ).first()
+                                if exists:
+                                    continue
 
-                        # Get attachments
-                        attachments = []
-                        for part in msg.walk():
-                            if part.get_content_disposition() == "attachment":
-                                filename = part.get_filename()
-                                if filename:
-                                    attachments.append({
-                                        "filename": filename,
-                                        "data": part.get_payload(decode=True)
-                                    })
+                            subject = decode_header(msg["Subject"])[0][0]
+                            if isinstance(subject, bytes):
+                                subject = subject.decode()
 
-                        # Get body
-                        body = ""
-                        if msg.is_multipart():
+                            sender = msg.get("From")
+
+                            attachments = []
                             for part in msg.walk():
-                                if part.get_content_type() == "text/plain":
-                                    try:
-                                        body = part.get_payload(decode=True).decode()
-                                    except Exception:
-                                        body = part.get_payload(decode=True).decode("latin-1", errors="replace")
-                                    break
-                        else:
-                            try:
-                                body = msg.get_payload(decode=True).decode()
-                            except Exception:
-                                body = msg.get_payload(decode=True).decode("latin-1", errors="replace")
+                                if part.get_content_disposition() == "attachment":
+                                    filename = part.get_filename()
+                                    if filename:
+                                        attachments.append({
+                                            "filename": filename,
+                                            "data": part.get_payload(decode=True)
+                                        })
 
-                        email_list.append({
-                            "subject": subject,
-                            "sender": sender,
-                            "body": body,
-                            "attachments": attachments
-                        })
+                            body = ""
+                            if msg.is_multipart():
+                                for part in msg.walk():
+                                    if part.get_content_type() == "text/plain":
+                                        try:
+                                            body = part.get_payload(decode=True).decode()
+                                        except Exception:
+                                            body = part.get_payload(decode=True).decode("latin-1", errors="replace")
+                                        break
+                            else:
+                                try:
+                                    body = msg.get_payload(decode=True).decode()
+                                except Exception:
+                                    body = msg.get_payload(decode=True).decode("latin-1", errors="replace")
 
-            except Exception as e:
-                print(f"⚠️ Error reading one email (skipping): {e}")
-                continue  # skip bad email, don't crash the whole batch
+                            email_list.append({
+                                "subject": subject,
+                                "sender": sender,
+                                "body": body,
+                                "attachments": attachments,
+                                "message_id": message_id
+                            })
 
+                except Exception as e:
+                    print(f"⚠️ Error reading one email (skipping): {e}")
+                    continue
+        finally:
+            db.close()
+
+        print(f"📨 {len(email_list)} new email(s) to process after dedup check")
         return email_list
 
     except imaplib.IMAP4.abort as e:
-        # Socket dropped mid-session — Celery will retry next minute
         print(f"🔌 IMAP connection dropped (socket EOF): {e}")
         return []
 
@@ -107,7 +113,6 @@ def get_recruitment_emails():
         return []
 
     finally:
-        # Always close cleanly — even if error happened
         if mail:
             try:
                 mail.close()

@@ -41,7 +41,6 @@ def extract_text_node(state: RecruitmentState) -> RecruitmentState:
         filename = resume.get("filename", "resume.pdf")
 
         if not file_data:
-            # No resume attached → send email to candidate
             sender_email = state["email"].get("sender")
             if sender_email:
                 from app.modules.email_sender.smtp_sender import send_no_resume_email
@@ -59,7 +58,6 @@ def extract_text_node(state: RecruitmentState) -> RecruitmentState:
 
             print(f"📊 Quality: {quality.get('reason')}")
 
-            # Poor quality → ask candidate to resubmit
             if not quality.get("is_good"):
                 print(f"⚠ Poor quality: {quality['reason']}")
                 sender_email = state["email"].get("sender")
@@ -84,7 +82,6 @@ def extract_text_node(state: RecruitmentState) -> RecruitmentState:
                 state["status"] = "resubmit_requested"
                 return state
         else:
-            # Unknown file type
             sender_email = state["email"].get("sender")
             if sender_email:
                 from app.modules.email_sender.smtp_sender import send_resubmit_email
@@ -139,7 +136,8 @@ def save_to_db_node(state: RecruitmentState) -> RecruitmentState:
             match_score=state["match_result"]["match_score"],
             status=state["match_result"]["recommendation"].lower(),
             email_subject=state["email"]["subject"],
-            sender_email=state["email"]["sender"]
+            sender_email=state["email"]["sender"],
+            message_id=state["email"].get("message_id")
         )
         db.add(candidate)
         db.commit()
@@ -187,7 +185,6 @@ def notify_hr_node(state: RecruitmentState) -> RecruitmentState:
     state["status"] = "hr_notified"
     return state
 
-# Edge conditions
 def should_process(state: RecruitmentState) -> str:
     if state["classification"]["is_recruitment"]:
         return "detect_resume"
@@ -199,7 +196,6 @@ def resume_found(state: RecruitmentState) -> str:
     return END
 
 def check_extraction(state: RecruitmentState) -> str:
-    # If extraction failed → stop
     if state.get("error") in ["no_resume_file", "poor_resume_quality",
                                "unsupported_format", "resubmit_requested"]:
         return END
@@ -212,13 +208,11 @@ def check_score(state: RecruitmentState) -> str:
     print(f"📊 Score: {score}%")
     if score >= 50:
         return "notify_hr"
-    # Auto save to DB but don't notify HR
     return END
 
 def build_recruitment_graph():
     graph = StateGraph(RecruitmentState)
 
-    # Add all nodes
     graph.add_node("classify", classify_node)
     graph.add_node("detect_resume", detect_resume_node)
     graph.add_node("extract_text", extract_text_node)
@@ -227,10 +221,8 @@ def build_recruitment_graph():
     graph.add_node("save_to_db", save_to_db_node)
     graph.add_node("notify_hr", notify_hr_node)
 
-    # Set entry point
     graph.set_entry_point("classify")
 
-    # Add edges
     graph.add_conditional_edges("classify", should_process)
     graph.add_conditional_edges("detect_resume", resume_found)
     graph.add_conditional_edges("extract_text", check_extraction)

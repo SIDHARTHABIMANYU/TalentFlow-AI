@@ -6,7 +6,6 @@ from app.core.database import Base
 
 class Candidate(Base):
     __tablename__ = "candidates"
-
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     full_name = Column(String(255), nullable=True)
     email = Column(String(255), nullable=True)
@@ -20,4 +19,5 @@ class Candidate(Base):
     status = Column(String(50), default="pending")
     email_subject = Column(String(500), nullable=True)
     sender_email = Column(String(255), nullable=True)
+    message_id = Column(String(500), nullable=True, unique=True)
     created_at = Column(DateTime, default=datetime.utcnow)
