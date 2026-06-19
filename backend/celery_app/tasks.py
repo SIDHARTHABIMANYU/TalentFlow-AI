@@ -14,6 +14,10 @@ celery_app.conf.beat_schedule = {
     }
 }
 
+celery_app.conf.timezone = 'Asia/Kolkata'
+celery_app.conf.enable_utc = True
+celery_app.conf.beat_scheduler = 'celery.beat.PersistentScheduler'
+
 
 def get_required_skills_from_db():
     try:
@@ -35,7 +39,6 @@ def get_required_skills_from_db():
     except Exception as e:
         print(f"⚠ DB skills fetch failed: {str(e)}")
 
-    # Fallback — Inceptrac all roles skills
     return (
         "PCB Design, KiCad, Altium, DFM, PCBA, Multi-layer, "
         "ESP32, STM32, FreeRTOS, RTOS, BLE, WiFi, IoT, Firmware, "
@@ -61,12 +64,9 @@ def match_skills_for_email(email_subject: str) -> str:
         return "Python, LLMs, Edge AI, Computer Vision, OpenCV, TensorFlow, PyTorch"
 
     else:
-        # Return all Inceptrac skills for unknown roles
         return get_required_skills_from_db()
 
 
-# ✅ KEY FIX: bind=True + max_retries so Celery retries on socket crash
-#    instead of dying and printing a red ERROR forever
 @celery_app.task(bind=True, max_retries=3, default_retry_delay=30)
 def poll_emails(self):
     import asyncio
@@ -80,13 +80,11 @@ def poll_emails(self):
         print(f"📧 Found {len(emails)} unread emails")
 
     except Exception as exc:
-        # Gmail connection totally failed — retry after 30 seconds
         print(f"🔌 Gmail connection failed, retrying... ({exc})")
-        raise self.retry(exc=exc)  # auto-retries up to 3x, then gives up gracefully
+        raise self.retry(exc=exc)
 
     for email in emails:
         try:
-            # Dynamically match skills based on email subject
             subject = email.get("subject", "")
             required_skills = match_skills_for_email(subject)
 
@@ -102,7 +100,6 @@ def poll_emails(self):
             print(f"✅ Processed: {subject}")
 
         except Exception as e:
-            # One email failed — log and continue to next, don't crash whole task
             print(f"❌ Error processing email '{email.get('subject', 'unknown')}': {str(e)}")
             continue
 

@@ -1,70 +1,64 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import { C, MONO, fmtDate } from '../theme'
+
+const API = 'https://recruitment.inceptarc.com'
+
+function logType(status) {
+  const s = String(status || '').toLowerCase()
+  if (['shortlist', 'shortlisted', 'approved'].includes(s)) return 'Interview Invite'
+  if (['reject', 'rejected'].includes(s)) return 'Rejection'
+  return 'Acknowledgement'
+}
 
 export default function EmailLogs() {
-    const [candidates, setCandidates] = useState([])
-    const [loading, setLoading] = useState(true)
+  const [candidates, setCandidates] = useState([])
+  const [loading, setLoading] = useState(true)
 
-    useEffect(() => {
-        const token = localStorage.getItem('token')
-        axios.get('https://recruitment.inceptarc.com/api/v1/candidates/', {
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        })
-        .then(res => {
-            setCandidates(res.data)
-            setLoading(false)
-        })
-        .catch(err => {
-            console.error('Error fetching logs:', err)
-            setLoading(false)
-        })
-    }, [])
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    axios.get(`${API}/api/v1/candidates/`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => { setCandidates(res.data || []); setLoading(false) })
+      .catch(err => { console.error('Error fetching logs:', err); setLoading(false) })
+  }, [])
 
-    return (
-        <div>
-            <h1 className="text-2xl font-bold mb-6">📧 Email Logs</h1>
-            <div className="bg-white rounded-lg shadow">
-                {loading ? (
-                    <p className="p-4 text-gray-500">Loading...</p>
-                ) : candidates.length === 0 ? (
-                    <p className="p-4 text-gray-500">No email logs found.</p>
-                ) : (
-                    <table className="w-full">
-                        <thead>
-                            <tr className="bg-gray-100">
-                                <th className="p-3 text-left">From</th>
-                                <th className="p-3 text-left">Subject</th>
-                                <th className="p-3 text-left">Status</th>
-                                <th className="p-3 text-left">Score</th>
-                                <th className="p-3 text-left">Date</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {candidates.map(c => (
-                                <tr key={c.id} className="border-b hover:bg-gray-50">
-                                    <td className="p-3">{c.sender_email || c.email}</td>
-                                    <td className="p-3">{c.email_subject || 'N/A'}</td>
-                                    <td className="p-3">
-                                        <span className={`px-2 py-1 rounded text-white text-sm ${
-                                            c.status === 'approved' ? 'bg-green-500' :
-                                            c.status === 'rejected' ? 'bg-red-500' :
-                                            c.status === 'shortlist' ? 'bg-blue-500' : 'bg-yellow-500'
-                                        }`}>
-                                            {c.status}
-                                        </span>
-                                    </td>
-                                    <td className="p-3">{c.match_score}%</td>
-                                    <td className="p-3 text-sm text-gray-500">
-                                        {new Date(c.created_at).toLocaleDateString()}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
-            </div>
+  return (
+    <div style={{ width: '100%', height: '100%', overflowY: 'auto', padding: '26px 28px 40px' }}>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 22px', background: C.field, borderBottom: `1px solid ${C.borderSoft}`, fontFamily: MONO, fontSize: 10, letterSpacing: '0.12em', color: C.muted3 }}>
+          <span style={{ flex: 2 }}>RECIPIENT</span>
+          <span style={{ flex: 3 }}>SUBJECT</span>
+          <span style={{ width: 130 }}>TYPE</span>
+          <span style={{ width: 100 }}>STATUS</span>
+          <span style={{ width: 110 }}>SENT</span>
         </div>
-    )
+        {loading && <div style={{ padding: 24, color: C.muted2 }}>Loading…</div>}
+        {!loading && candidates.length === 0 && <div style={{ padding: 24, color: C.muted2 }}>No email logs found.</div>}
+        {candidates.map(c => {
+          const type = logType(c.status)
+          const deliv = c.email_status || 'Delivered'
+          const subject = c.email_subject || `${type} — ${c.full_name || 'Candidate'}`
+          const ls = String(deliv).toLowerCase() === 'bounced'
+            ? { color: C.red, bg: C.redBg }
+            : String(deliv).toLowerCase() === 'opened'
+            ? { color: C.green, bg: C.greenBg }
+            : { color: C.blue, bg: C.blueBg }
+          return (
+            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 22px', borderBottom: `1px solid ${C.rowLine}` }}>
+              <div style={{ flex: 2, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.full_name || 'Unknown'}</div>
+                <div style={{ fontSize: 11.5, color: C.muted2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.sender_email || c.email}</div>
+              </div>
+              <span style={{ flex: 3, fontSize: 13, color: C.text2, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{subject}</span>
+              <span style={{ width: 130, fontSize: 12, color: '#77777E' }}>{type}</span>
+              <span style={{ width: 100 }}>
+                <span style={{ fontSize: 11.5, fontWeight: 600, padding: '3px 10px', borderRadius: 20, background: ls.bg, color: ls.color }}>{deliv}</span>
+              </span>
+              <span style={{ width: 110, fontFamily: MONO, fontSize: 11, color: C.muted2 }}>{fmtDate(c.created_at)}</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
 }

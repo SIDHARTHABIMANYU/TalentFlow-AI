@@ -122,9 +122,25 @@ def match_skills_node(state: RecruitmentState) -> RecruitmentState:
 def save_to_db_node(state: RecruitmentState) -> RecruitmentState:
     from app.core.database import SessionLocal
     from app.models.candidate import Candidate
+    from sqlalchemy.exc import IntegrityError
     print("💾 Saving to database...")
+
+    message_id = state["email"].get("message_id")
+
     db = SessionLocal()
     try:
+        # Final safety check right before insert — catches race conditions
+        # where two pollers both passed the earlier dedup check at the same time
+        if message_id:
+            existing = db.query(Candidate).filter(
+                Candidate.message_id == message_id
+            ).first()
+            if existing:
+                print(f"⏭ Duplicate caught at save time (Message-ID already exists), skipping: {message_id}")
+                state["candidate_id"] = str(existing.id)
+                state["status"] = "duplicate_skipped"
+                return state
+
         candidate = Candidate(
             full_name=state["parsed_data"].get("full_name"),
             email=state["parsed_data"].get("email"),
@@ -137,13 +153,22 @@ def save_to_db_node(state: RecruitmentState) -> RecruitmentState:
             status=state["match_result"]["recommendation"].lower(),
             email_subject=state["email"]["subject"],
             sender_email=state["email"]["sender"],
-            message_id=state["email"].get("message_id")
+            message_id=message_id
         )
         db.add(candidate)
         db.commit()
         db.refresh(candidate)
         state["candidate_id"] = str(candidate.id)
         print(f"✅ Saved! ID: {state['candidate_id']}")
+
+    except IntegrityError as e:
+        # Unique constraint violation — another poller saved this exact
+        # Message-ID a split second before us. This is expected and harmless.
+        db.rollback()
+        print(f"⏭ Race condition caught (duplicate Message-ID at DB level), skipping safely")
+        state["status"] = "duplicate_skipped"
+        return state
+
     except Exception as e:
         print(f"❌ DB error: {str(e)}")
         db.rollback()
@@ -204,6 +229,8 @@ def check_extraction(state: RecruitmentState) -> str:
     return "parse_resume"
 
 def check_score(state: RecruitmentState) -> str:
+    if state.get("status") == "duplicate_skipped":
+        return END
     score = state["match_result"]["match_score"]
     print(f"📊 Score: {score}%")
     if score >= 50:
