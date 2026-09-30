@@ -54,3 +54,12 @@ Requires Gmail IMAP credentials, Gemini API key, PostgreSQL connection, and Goog
 ## Status
 
 Built and deployed as part of an AI Engineering internship at Spinacle Technologies, in production use by a real client.
+
+## My Role
+
+I built the initial production system end-to-end — the Celery-based 
+ingestion pipeline, hybrid OCR, Gemini-based parsing, 4-layer matching 
+engine, ChromaDB RAG, Telegram approval flow, and React dashboard. 
+Security hardening, AWS Bedrock migration, and infrastructure changes 
+were added in later iterations as the system moved toward broader 
+production use.
