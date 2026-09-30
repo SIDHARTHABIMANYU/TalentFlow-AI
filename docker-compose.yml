@@ -3,7 +3,7 @@ services:
     image: postgres:15
     restart: always
     environment:
-      POSTGRES_DB: inceptrac_recruitment
+      POSTGRES_DB: recruitment_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres123
     volumes:
