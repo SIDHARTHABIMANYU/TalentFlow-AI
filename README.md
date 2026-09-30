@@ -1,6 +1,6 @@
-# Inceptarc AI Recruitment System
+# Talentflow-AI Recruitment System 
 
-A production AI recruitment platform, live at recruitment.inceptarc.com, that automates resume screening end-to-end.
+A production AI recruitment platform, live , that automates resume screening end-to-end.
 
 ## Problem
 
